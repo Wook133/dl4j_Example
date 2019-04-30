@@ -10,6 +10,7 @@ import org.deeplearning4j.datasets.datavec.RecordReaderDataSetIterator;
 import org.deeplearning4j.datasets.iterator.ExistingDataSetIterator;
 import org.deeplearning4j.datasets.iterator.IteratorDataSetIterator;
 import org.deeplearning4j.datasets.iterator.loader.DataSetLoaderIterator;
+import org.deeplearning4j.eval.Evaluation;
 import org.deeplearning4j.eval.RegressionEvaluation;
 import org.deeplearning4j.nn.conf.MultiLayerConfiguration;
 import org.deeplearning4j.nn.conf.NeuralNetConfiguration;
@@ -25,6 +26,7 @@ import org.nd4j.linalg.dataset.SplitTestAndTrain;
 import org.nd4j.linalg.dataset.api.iterator.DataSetIterator;
 import org.nd4j.linalg.dataset.api.preprocessor.DataNormalization;
 import org.nd4j.linalg.dataset.api.preprocessor.NormalizerStandardize;
+import org.nd4j.linalg.learning.config.AdaGrad;
 import org.nd4j.linalg.learning.config.Nesterovs;
 import org.nd4j.linalg.lossfunctions.LossFunctions;
 import org.slf4j.Logger;
@@ -44,13 +46,13 @@ public class maihn {
     //Random number generator seed, for reproducability
     public static final int seed = 12345;
     //Number of epochs (full passes of the data)
-    public static final int nEpochs = 100;
+    public static final int nEpochs = 1000;
     //How frequently should we plot the network output?
     public static final int plotFrequency = 5;
     //Number of data points
     public static final int nSamples = 206;
     //Batch size: i.e., each epoch has nSamples/batchSize parameter updates
-    public static final int batchSize = 5;
+    public static final int batchSize = 103;
     //Network learning rate
     public static final double learningRate = 0.01;
     public static final Random rng = new Random(seed);
@@ -58,7 +60,7 @@ public class maihn {
     public static final int numOutputs = 1;
 
 
-    public static void main2(String[] args) throws Exception {
+    public static void main(String[] args) throws Exception {
 
 
         //First: get the dataset using the record reader. CSVRecordReader handles loading/parsing
@@ -94,15 +96,54 @@ public class maihn {
         DataSet trainingData = testAndTrain.getTrain();
         DataSet testData = testAndTrain.getTest();
 
-
-
-       // System.out.println(trainingData.toString());
         //Data Preprocessing
         //We need to normalize our data. We'll use NormalizeStandardize (which gives us mean 0, unit variance):
-        DataNormalization normalizer = new NormalizerStandardize();
+       /* DataNormalization normalizer = new NormalizerStandardize();
         normalizer.fit(trainingData);           //Collect the statistics (mean/stdev) from the training data. This does not modify the input data
         normalizer.transform(trainingData);     //Apply normalization to the training data
         normalizer.transform(testData);         //Apply normalization to the test data. This is using statistics calculated from the *training* set
+        */
+
+        writeCsvFile("raw_trainingdata.txt", trainingData);
+        writeCsvFile("raw_testdata.txt", testData);
+
+        ArrayList<String> readList = new ArrayList<>();
+        readList = readfile("raw_trainingdata.txt");
+        //DisplayList(readList);
+        writeConvert(readList, "trainingdata.txt");
+        readList.clear();
+        readList = readfile("raw_testdata.txt");
+        //DisplayList(readList);
+        writeConvert(readList, "testdata.txt");
+        readList.clear();
+
+        //Thread.sleep(4000);
+
+        String resourcePath = "D:\\2019\\Ex1\\src\\main\\resources\\";
+
+        RecordReader recordReaderTrain = new CSVRecordReader(numLinesToSkip,delimiter);
+        recordReaderTrain.initialize(new FileSplit(new File(resourcePath+"trainingdata.txt")));
+        DataSetIterator iteratorTrain = new RecordReaderDataSetIterator.Builder(recordReaderTrain, batchSize)
+                //Specify the columns that the regression labels/targets appear in. Note that all other columns will be
+                // treated as features. Columns indexes start at 0
+                .regression(startIndex, startIndex+numRegression)
+                .build();
+        DataSet trainData = iteratorTrain.next();
+
+
+        RecordReader recordReaderTest = new CSVRecordReader(numLinesToSkip,delimiter);
+        recordReaderTest.initialize(new FileSplit(new File(resourcePath+"testdata.txt")));
+
+
+        DataSetIterator iteratorTest = new RecordReaderDataSetIterator.Builder(recordReaderTest, batchSize)
+                //Specify the columns that the regression labels/targets appear in. Note that all other columns will be
+                // treated as features. Columns indexes start at 0
+                .regression(startIndex, startIndex+numRegression)
+                .build();
+
+
+       // System.out.println(trainingData.toString());
+
 
        // DataSetIterator iteratorTrain = new DataSetLoaderIterator()
       //  DataSetIterator iteratorTest = new ;
@@ -114,7 +155,7 @@ public class maihn {
         int outputNum = 3;
         long seed = 6;
 
-        final MultiLayerConfiguration conf = getDeepDenseLayerNetworkConfiguration();
+        final MultiLayerConfiguration conf = getShallowDenseLayerNetworkConfiguration();
 
         //Create the network
         final MultiLayerNetwork net = new MultiLayerNetwork(conf);
@@ -125,15 +166,42 @@ public class maihn {
         final INDArray[] networkPredictions = new INDArray[nEpochs/ plotFrequency];
         for( int i=0; i<nEpochs; i++ ){
             //iterator.reset();
-            net.fit(trainingData);
+            //net.fit(trainData);
+            iteratorTrain.reset();
+            net.fit(iteratorTrain);
+            System.out.println(i);
+         /*   RegressionEvaluation regEval = net.evaluateRegression(iteratorTest);
+
+            double mse = regEval.averageMeanSquaredError();
+            double r2 = regEval.averagecorrelationR2();
+
           //  RegressionEvaluation regEvaluate = net.evaluateRegression(testData);
             System.out.println(net.getEpochCount() + " : " + net.score());
-
+            System.out.println("MSE = " + mse);
+            System.out.println("R2 = " + r2);
+            iteratorTest.reset();*/
         }
+        RegressionEvaluation regEval = net.evaluateRegression(iteratorTest);
+        System.out.println(regEval.stats());
+        Evaluation eval = new Evaluation(numOutputs);
 
+
+
+       /* double mse = regEval.meanSquaredError(0);
+        double r2 = regEval.correlationR2(0);
+        System.out.println("MSE = " + mse);
+        System.out.println("R2 = " + r2);
+        List<String> prediction = new ArrayList<>();
+        List<String> lbls = new ArrayList<>();
+        lbls.add("x");
+        lbls.add("y");
+        testData.setLabelNames(lbls);
+        prediction = net.predict(testData);
+
+        System.out.println(prediction);*/
     }
 
-    public static void main(String[] args) throws Exception {
+    public static void main3(String[] args) throws Exception {
         //writeCsvFile("test.txt",testData);
         ArrayList<String> readList = new ArrayList<>();
         readList = readfile("test.txt");
@@ -146,8 +214,8 @@ public class maihn {
     private static MultiLayerConfiguration getDeepDenseLayerNetworkConfiguration() {
         final int numHiddenNodes = 50;
         return new NeuralNetConfiguration.Builder()
-                .weightInit(WeightInit.XAVIER)
-                .updater(new Nesterovs(learningRate, 0.9))
+                .weightInit(WeightInit.UNIFORM)
+                .updater(new AdaGrad())
                 .list()
                 .layer(0, new DenseLayer.Builder().nIn(numInputs).nOut(numHiddenNodes)
                         .activation(Activation.TANH).build())
@@ -159,12 +227,45 @@ public class maihn {
                 .build();
     }
 
+    private static MultiLayerConfiguration getShallowDenseLayerNetworkConfiguration() {
+        final int numHiddenNodes = 10;
+        return new NeuralNetConfiguration.Builder()
+                .weightInit(WeightInit.UNIFORM)
+                .updater(new AdaGrad())
+                .list()
+                .layer(0, new DenseLayer.Builder().nIn(numInputs).nOut(numHiddenNodes)
+                        .activation(Activation.RELU).build())
+                .layer(1, new OutputLayer.Builder(LossFunctions.LossFunction.MSE)
+                        .activation(Activation.SIGMOID)
+                        .nIn(numHiddenNodes).nOut(numOutputs).build())
+                .backprop(true)
+                .pretrain(false)
+
+                .build();
+    }
 
     public static void writeCsvFile(String fileName, DataSet ds) throws IOException {
         FileWriter fileWriter = null;
         try
         {
-            fileWriter = new FileWriter(fileName, true);
+            fileWriter = new FileWriter(fileName, false);
+            fileWriter.append(NEW_LINE_SEPARATOR);
+            fileWriter.append(ds.toString());
+            fileWriter.flush();
+            fileWriter.close();
+        }
+        catch (Exception e)
+        {
+            System.out.println(e);
+        }
+    }
+
+    public static void writeTXTfile(String fileName, DataSet ds) throws IOException {
+        FileWriter fileWriter = null;
+        try
+        {
+            File file = new File("D:\\2019\\Ex1\\src\\main\\resources\\"+fileName);
+            fileWriter = new FileWriter(file, false);
             fileWriter.append(NEW_LINE_SEPARATOR);
             fileWriter.append(ds.toString());
             fileWriter.flush();
@@ -294,17 +395,28 @@ public class maihn {
 
     public static void writeTF(String fileName, ArrayList<String> dataset) throws IOException {
         FileWriter fileWriter = null;
+        //D:\\2019\\Ex1\\src\\main\\resources
+
         try
         {
-            fileWriter = new FileWriter(fileName, true);
+            Writer output = null;
+            File file = new File("D:\\2019\\Ex1\\src\\main\\resources\\"+fileName);
+
+            output = new BufferedWriter(new FileWriter(file));
+
+           // fileWriter = new FileWriter(fileName, true);
 
             for (String s : dataset)
             {
-                fileWriter.append(s);
-                fileWriter.append(NEW_LINE_SEPARATOR);
+                output.append(s);
+                ((BufferedWriter) output).newLine();
+                /*fileWriter.append(s);
+                fileWriter.append(NEW_LINE_SEPARATOR);*/
             }
-            fileWriter.flush();
-            fileWriter.close();
+            output.flush();
+            output.close();
+            /*fileWriter.flush();
+            fileWriter.close();*/
         }
         catch (Exception e)
         {
@@ -312,8 +424,7 @@ public class maihn {
         }
     }
 
-
-    private static String reverse(String s)
+        private static String reverse(String s)
     {
         String x = "";
 
