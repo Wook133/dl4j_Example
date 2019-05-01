@@ -2,10 +2,13 @@ package Regression;
 
 import org.nd4j.linalg.api.ndarray.INDArray;
 import org.nd4j.linalg.factory.Nd4j;
+import org.nd4j.linalg.indexing.NDArrayIndex;
 
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.Scanner;
 
 public class readFile {
@@ -145,6 +148,37 @@ public class readFile {
             return null;
     }
 
+    public static INDArray getX(INDArray XY, int numRegressors)
+    {
+        int numColXY = XY.columns();
+        int numRowXY = XY.rows();
+        int numCol = numColXY - numRegressors;
+
+        INDArray data = Nd4j.zeros(numRowXY,numCol);
+        //row column
+        data = XY.get(NDArrayIndex.all(), NDArrayIndex.interval(0,numCol));
+        return data;
+    }
+
+    public static INDArray getY(INDArray XY, int numRegressors)
+    {
+        int numColXY = XY.columns();
+        int numRowXY = XY.rows();
+        int numCol = numColXY - numRegressors;
+
+        INDArray data = Nd4j.zeros(numRowXY,numRegressors);
+        //row column
+        int num = numColXY - numCol;
+        int[] Ycolumns = new int[num];
+        for (int i = num - 1; i >= 0 ; i--)
+        {
+            Ycolumns[i] = numColXY - i - 1;
+        }
+        Arrays.sort(Ycolumns);
+        data = XY.getColumns(Ycolumns);
+        return data;
+    }
+
     public static void main(String[] args) {
         ArrayList<ArrayList<String>> list = new ArrayList<>();
         list = readfile(resourceDirectory+"trainx.txt");
@@ -156,7 +190,14 @@ public class readFile {
         System.out.println(widthListList(doubleList));
         System.out.println(lengthListList(doubleList));
         INDArray data = convertListList(doubleList);
+        System.out.println("XY");
         System.out.println(data);
+        System.out.println("X");
+        INDArray X = getX(data, 1);
+        System.out.println(X);
+        System.out.println("Y");
+        INDArray Y = getY(data, 1);
+        System.out.println(Y);
     }
 
 
