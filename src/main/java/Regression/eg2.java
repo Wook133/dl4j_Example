@@ -6,6 +6,7 @@ import org.datavec.api.records.reader.impl.csv.CSVRecordReader;
 import org.datavec.api.split.FileSplit;
 import org.datavec.api.util.ClassPathResource;
 import org.deeplearning4j.datasets.datavec.RecordReaderDataSetIterator;
+import org.deeplearning4j.datasets.iterator.loader.DataSetLoaderIterator;
 import org.deeplearning4j.eval.RegressionEvaluation;
 import org.deeplearning4j.nn.conf.MultiLayerConfiguration;
 import org.deeplearning4j.nn.conf.NeuralNetConfiguration;
@@ -17,7 +18,9 @@ import org.deeplearning4j.optimize.listeners.ScoreIterationListener;
 import org.nd4j.linalg.activations.Activation;
 import org.nd4j.linalg.dataset.DataSet;
 import org.nd4j.linalg.dataset.SplitTestAndTrain;
+import org.nd4j.linalg.dataset.api.iterator.BaseDatasetIterator;
 import org.nd4j.linalg.dataset.api.iterator.DataSetIterator;
+import org.nd4j.linalg.dataset.api.iterator.fetcher.DataSetFetcher;
 import org.nd4j.linalg.dataset.api.preprocessor.DataNormalization;
 import org.nd4j.linalg.dataset.api.preprocessor.NormalizerStandardize;
 import org.nd4j.linalg.learning.config.AdaGrad;
@@ -48,10 +51,10 @@ public class eg2 {
         int startIndex = 1;
         int numRegression = 0;*/
 
-        constructDataSets(start,sfile, 6,0, 206, 0.7);
+        constructDataSets(start,sfile, 5,0, 1460, 0.7);
         int numLinesToSkip = 0;
         char delimiter = ',';
-        int startIndex = 6;
+        int startIndex = 5;
         int numRegression = 0;
 
         RecordReader recordReaderTrain = new CSVRecordReader(numLinesToSkip,delimiter);
@@ -220,6 +223,7 @@ public class eg2 {
             File file = new File(resourceDirectory+fileName);
             fileWriter = new FileWriter(file, false);
             fileWriter.append(NEW_LINE_SEPARATOR);
+           // DataSetIterator dsi = new BaseDatasetIterator(new DataSetFetcher(ds));
             fileWriter.append(ds.toString());
             fileWriter.flush();
             fileWriter.close();
